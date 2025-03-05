@@ -1,0 +1,20 @@
+{
+  "name": "backend-pokeapi",
+  "version": "1.0.0",
+  "description": "Derechos Reservados a Nintendo, porfavor no me demanden.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon ./index.js"
+  },
+  "author": "Santiago Lopez Garcia && Co-Author: Nintendo(NoMeDemandenPlis)",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}
