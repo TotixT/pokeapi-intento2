@@ -1,221 +1,216 @@
 <template>
   <v-container class="d-flex flex-column align-center justify-center fill-height">
-    <v-btn color="red darken-2" dark x-large @click="generarPokemons" class="mb-5">
+    
+    <!-- Cartas del NPC (Ocultas) -->
+    <div class="cards-wrapper npc-cards">
+      <PokemonList :pokemons="pokemonsNPC" :isNPC="true" />
+    </div>
+
+    <v-btn color="red darken-2" dark x-large @click="generarPokemons" class="mb-5 mt-5">
       Ready?
     </v-btn>
 
+        <div v-if="battleReady" class="battle-area d-flex align-center justify-center mt-5 mb-5">
+      <!-- Espacio para el Pokémon del jugador -->
+      <div class="player-section d-flex flex-column align-center">
+        <strong>Jugador</strong>
+        <div class="player-slot" @drop="dropInPlayerSlot" @dragover.prevent @click="removePlayerPokemon">
+          <PokemonCard v-if="playerPokemon" :pokemon="playerPokemon" :isNpc="false" :inBattleZone="true" />
+        </div>
+      </div>
+
+      <!-- Botón de batalla, solo aparece si ambos Pokémon están colocados -->
+      <v-btn v-if="playerPokemon && npcPokemon" color="blue darken-2" dark x-large @click="startBattle">
+        BATTLE!
+      </v-btn>
+      
+      <!-- Espacio para el Pokémon del NPC -->
+      <div class="npc-section d-flex flex-column align-center">
+        <strong>NPC</strong>
+        <div class="npc-slot">
+          <PokemonCard v-if="npcPokemon" :pokemon="npcPokemon" :isNpc="true" :inBattleZone="true" />
+        </div>
+      </div>
+    </div>
+
+
     <div class="cards-wrapper">
-      <v-row class="mt-2 justify-center" align="center">
-        <v-col
-          v-for="(pokemon, index) in pokemons"
-          :key="pokemon.id || index"
-          cols="auto"
-          md="2"
-          class="d-flex justify-center"
-          draggable="true"
-          @dragstart="dragStart(index)"
-          @dragover.prevent
-          @drop="drop(index)"
-        >
-          <v-card
-            class="pa-4 draggable-card"
-            elevation="6"
-            :style="{
-              border: `4px solid ${getColorForType(pokemon.selectedType)}`,
-            }"
-          >
-            <v-img :src="pokemon.image" alt="Imagen de Pokémon" contain height="120"></v-img>
-            <v-card-title class="text-center card-title">
-              <span class="pokemon-name">{{ pokemon.name.toUpperCase() }}</span>
-            </v-card-title>
-
-            <div v-if="pokemon.selectedType">
-              <v-chip :color="getColorForType(pokemon.selectedType)" dark>
-                {{ pokemon.selectedType.toUpperCase() }}
-              </v-chip>
-            </div>
-
-            <div v-else class="d-flex flex-wrap justify-center">
-              <v-btn
-                v-for="type in pokemon.availableTypes"
-                :key="type"
-                class="mx-2 mb-2"
-                :color="getColorForType(type)"
-                dark
-                @click="confirmarTipo(pokemon, type)"
-              >
-                {{ type.toUpperCase() }}
-              </v-btn>
-            </div>
-          </v-card>
-        </v-col>
-      </v-row>
+      <PokemonList :pokemons="pokemons" @dragStart="dragStart" @drop="dropInList" @dragOver="dragOver" @confirmarTipo="confirmarTipo" />
     </div>
   </v-container>
 </template>
 
 <script>
 import axios from "axios";
+import PokemonList from "./PokemonList.vue";
+import PokemonCard from "@/components/Combat/PokemonCard.vue";
 
 export default {
+  components: { PokemonList, PokemonCard },
   data() {
     return {
       pokemons: [],
+      pokemonsNPC: [],
+      playerPokemon: null,
+      npcPokemon: null,
       draggedIndex: null,
-      typeColors: {
-        normal: "#A8A77A",
-        fire: "#EE8130",
-        water: "#6390F0",
-        electric: "#F7D02C",
-        grass: "#7AC74C",
-        ice: "#96D9D6",
-        fighting: "#C22E28",
-        poison: "#A33EA1",
-        ground: "#E2BF65",
-        flying: "#A98FF3",
-        psychic: "#F95587",
-        bug: "#A6B91A",
-        rock: "#B6A136",
-        ghost: "#735797",
-        dragon: "#6F35FC",
-        dark: "#705746",
-        steel: "#B7B7CE",
-        fairy: "#D685AD",
-      },
+      battleReady: false,
     };
   },
   methods: {
     async generarPokemons() {
-      this.pokemons = [];
+  console.log("Iniciando carga de pokemons...");
+  this.battleReady = true;
 
-      for (let i = 0; i < 5; i++) {
-        const response = await axios.get("http://localhost:8081/pokemon/pokemonRandom");
+  // 🔹 Si hay un Pokémon en el espacio en blanco, lo regresamos a la lista
+  if (this.playerPokemon) {
+    this.pokemons.push(this.playerPokemon);
+    this.playerPokemon = null; // Limpiar el espacio en blanco
+  }
 
-        const formattedName = response.data.name.split('-')[0];
+  // 🔹 Limpiar el Pokémon del NPC también
+  this.npcPokemon = null;
 
-        // Obtener los tipos disponibles del Pokémon desde el backend
-        const typesResponse = await axios.get(`http://localhost:8081/pokemon/selectType/${response.data.id}`);
-        const availableTypes = typesResponse.data.pokemon.availableTypes;
+  // 🔹 Resetear las listas antes de generar nuevos Pokémon
+  this.pokemons = [];
+  this.pokemonsNPC = [];
 
-        const newPokemon = {
-          ...response.data,
-          name: formattedName.toUpperCase(),
-          selectedType: null,
-          availableTypes, // Cargar tipos desde backend
-        };
+  for (let i = 0; i < 5; i++) {
+    try {
+      // 🔹 Obtener Pokémon para el jugador
+      const responseJugador = await axios.get("http://localhost:8081/pokemon/pokemonRandom");
+      const typesResponseJugador = await axios.get(`http://localhost:8081/pokemon/selectType/${responseJugador.data.id}`);
 
-        // Si solo tiene un tipo, lo confirmamos automáticamente
-        if (availableTypes.length === 1) {
-          await this.confirmarTipo(newPokemon, availableTypes[0]);
-        }
+      this.pokemons.push({
+        ...responseJugador.data,
+        name: responseJugador.data.name.split("-")[0].toUpperCase(),
+        availableTypes: typesResponseJugador.data.pokemon.availableTypes || [],
+        selectedType: null,
+      });
 
-        this.pokemons.push(newPokemon);
+      // 🔹 Si el Pokémon tiene un solo tipo, seleccionarlo automáticamente
+      if (this.pokemons[i].availableTypes.length === 1) {
+        this.confirmarTipo(this.pokemons[i], this.pokemons[i].availableTypes[0]);
       }
+
+      // 🔹 Obtener Pokémon para el NPC (ocultos)
+      const responseNPC = await axios.get("http://localhost:8081/pokemon/pokemonRandom");
+      this.pokemonsNPC.push({
+        id: responseNPC.data.id,
+        name: "???",
+         image: responseNPC.data.image,
+        //image: "https://tcg.pokemon.com/assets/img/global/tcg-card-back.jpg",
+        selectedType: "???",
+        availableTypes: [],
+      });
+
+    } catch (error) {
+      console.error("Error al obtener Pokémon:", error);
     }
+  }
+}
+
     ,
-    dragStart(index) {
+    dragStart(index, isNpc = false) {
+      if (isNpc) return; // 🔹 Evita que las cartas del NPC sean arrastradas
       this.draggedIndex = index;
     },
+    dropInPlayerSlot() {
+        if (this.draggedIndex === null) return;
 
-    drop(index) {
-      if (this.draggedIndex === null || this.draggedIndex === index) return;
+        const pokemon = this.pokemons[this.draggedIndex];
 
-      const movedItem = this.pokemons[this.draggedIndex];
-      this.pokemons.splice(this.draggedIndex, 1);
-      this.pokemons.splice(index, 0, movedItem);
+        console.log("Intentando colocar Pokémon en la zona de batalla:", pokemon);
+
+        if (!pokemon.selectedType) {
+          console.log("❌ Error: Pokémon sin tipo confirmado:", pokemon);
+          alert("⚠️ Debes confirmar el tipo del Pokémon antes de enviarlo a la batalla.");
+          return;
+        }
+
+        console.log("✅ Pokémon con tipo confirmado, moviéndolo a la batalla.");
+
+        if (this.playerPokemon) {
+          this.pokemons.push(this.playerPokemon);
+        }
+
+        this.playerPokemon = pokemon;
+        this.pokemons.splice(this.draggedIndex, 1);
+        this.draggedIndex = null;
+
+        if (!this.npcPokemon) {
+          this.assignNpcPokemon();
+        }
+      },
+    removePlayerPokemon() {
+      if (this.playerPokemon) {
+        this.pokemons.push(this.playerPokemon);
+        this.playerPokemon = null;
+      }
+    },
+    dropInList(event, targetIndex, isNpc = false) {
+      if (isNpc) return; // 🔹 Evita que las cartas del NPC puedan ser modificadas
+
+      event.preventDefault();
+      if (this.draggedIndex === null || targetIndex === this.draggedIndex) return;
+
+      // Intercambiar Pokémon en la lista
+      const temp = this.pokemons[this.draggedIndex];
+      this.$set(this.pokemons, this.draggedIndex, this.pokemons[targetIndex]);
+      this.$set(this.pokemons, targetIndex, temp);
 
       this.draggedIndex = null;
     },
-
+    dragOver(event) {
+      event.preventDefault();
+    },
+    assignNpcPokemon() {
+      if (this.pokemonsNPC.length > 0) {
+        this.npcPokemon = this.pokemonsNPC[Math.floor(Math.random() * this.pokemonsNPC.length)];
+      }
+    },
+    startBattle() {
+      console.log("¡La batalla ha comenzado entre", this.playerPokemon?.name, "y", this.npcPokemon?.name, "!");
+    },
     async confirmarTipo(pokemon, selectedType) {
+      console.log(`Confirmando tipo: ${selectedType} para ${pokemon.name}`);
+      
       try {
         const response = await axios.post("http://localhost:8081/pokemon/confirmTypeSelection", {
           pokemonId: pokemon.id,
           selectedType,
         });
 
-        // Actualizar el Pokémon con el tipo seleccionado y ocultar los otros botones
-        pokemon.selectedType = response.data.pokemon.finalType;
-        pokemon.availableTypes = [pokemon.selectedType]; // Se queda solo con el tipo seleccionado
+        if (response.data.pokemon.finalType) {
+          pokemon.selectedType = response.data.pokemon.finalType;
+          pokemon.availableTypes = [pokemon.selectedType];
+          console.log(`✅ Tipo confirmado: ${pokemon.selectedType}`);
+        } else {
+          console.warn(`⚠️ No se recibió un tipo válido para ${pokemon.name}`);
+        }
       } catch (error) {
         console.error("Error confirmando el tipo:", error);
       }
-    },
-
-    getColorForType(type) {
-      return this.typeColors[type?.toLowerCase()] || "blue-grey";
     },
   },
 };
 </script>
 
 <style scoped>
-.v-container {
-  height: 100vh;
+.battle-area {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  gap: 20px;
 }
 
-.cards-wrapper {
+.player-slot, .npc-slot {
+  width: 150px;
+  height: 200px;
+  border: 2px dashed gray;
   display: flex;
-  justify-content: center;
-  gap: 64px;
-  flex-wrap: wrap;
-  width: 100%;
-  padding: 0 16px;
-}
-
-.v-row {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 64px;
-  width: 100%;
-}
-
-.v-col {
-  display: flex;
-  justify-content: center;
-  width: auto;
-}
-
-.v-card {
-  width: 230px;
-  height: 290px;
-  text-align: center;
-  cursor: grab;
-  transition: transform 0.2s ease-in-out;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  box-sizing: border-box;
-  border-radius: 12px;
-}
-
-.v-card:active {
-  transform: scale(1.05);
-}
-
-.v-img {
-  max-width: 120px;
-  height: auto;
-}
-
-.card-title {
-  font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.v-chip {
-  margin-top: 8px;
-  font-weight: bold;
+  justify-content: center;
+  cursor: pointer;
 }
 </style>
