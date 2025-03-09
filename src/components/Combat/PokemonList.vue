@@ -17,7 +17,7 @@
         :index="index"
         :isNPC="isNPC"
         @dragStart="$emit('dragStart', index)"
-        @drop="$emit('drop', index)"
+        @drop="(event) => $emit('drop', event, index)"
         @confirmarTipo="(data) => $emit('confirmarTipo', data.pokemon, data.type)"
       />
     </v-col>

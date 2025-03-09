@@ -6,7 +6,7 @@
   :style="{ border: `4px solid ${getColorForType(pokemon.selectedType)}` }"
   :draggable="!isNpc && pokemon.selectedType" 
   v-if="!isNpc || (isNpc && hideNpc)"
-  @dragstart="!isNpc ? onDragStart($event) : $event.preventDefault()" 
+  @dragstart="!isNpc ? onDragStart($event) : (event) => event.preventDefault()"
   @dragover.prevent
   @drop="!isNpc && $emit('drop', index)"
 >
@@ -15,9 +15,7 @@
         :src="pokemon.image" 
         alt="Pokémon Oculto"
         class="npc-hidden-img"
-        height="100%" 
-        width="100%"
-        contain
+        contain height="120" 
       ></v-img>
       <v-card-title class="text-center card-title">
         <span class="pokemon-name">???</span>
@@ -25,7 +23,7 @@
     </template>
 
     <template v-else>
-      <v-img :src="pokemon.image" alt="Imagen de Pokémon" contain height="120"></v-img>
+      <v-img :src="pokemon.image" alt="Imagen de Pokémon" contain height="120" width="330"></v-img>
       <v-card-title class="text-center card-title">
         <span class="pokemon-name">{{ pokemon.name }}</span>
       </v-card-title>
@@ -119,9 +117,9 @@ export default {
 }
 
 .v-img {
-  width: 100px !important;
+  width: 330px !important;
   height: 100px !important;
-
+  object-fit: contain;
 }
 
 .card-title {
@@ -149,9 +147,8 @@ export default {
 }
 
 .npc-hidden-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* Asegura que la imagen se ajuste sin recortarse */
+  height: 120px;
+  object-fit: contain; /* Asegura que la imagen se ajuste sin recortarse */
   border-radius: 12px; /* Mantiene el diseño de la tarjeta */
 }
 

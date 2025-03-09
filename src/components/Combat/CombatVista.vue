@@ -95,13 +95,16 @@ export default {
 
       // 🔹 Obtener Pokémon para el NPC (ocultos)
       const responseNPC = await axios.get("http://localhost:8081/pokemon/pokemonRandom");
+      const typesResponseNPC = await axios.get(`http://localhost:8081/pokemon/selectType/${responseNPC.data.id}`);
+
       this.pokemonsNPC.push({
         id: responseNPC.data.id,
+        originalName: responseNPC.data.name.split("-")[0].toUpperCase(),
         name: "???",
-         image: responseNPC.data.image,
-        //image: "https://tcg.pokemon.com/assets/img/global/tcg-card-back.jpg",
+        originalImage: responseNPC.data.image,
+        image: "https://tcg.pokemon.com/assets/img/global/tcg-card-back.jpg",
         selectedType: "???",
-        availableTypes: [],
+        availableTypes: typesResponseNPC.data.pokemon.availableTypes || [],
       });
 
     } catch (error) {
@@ -151,7 +154,10 @@ export default {
     dropInList(event, targetIndex, isNpc = false) {
       if (isNpc) return; // 🔹 Evita que las cartas del NPC puedan ser modificadas
 
-      event.preventDefault();
+      if (event && typeof event.preventDefault === "function") {
+        event.preventDefault();
+      }
+
       if (this.draggedIndex === null || targetIndex === this.draggedIndex) return;
 
       // Intercambiar Pokémon en la lista
@@ -170,8 +176,46 @@ export default {
       }
     },
     startBattle() {
-      console.log("¡La batalla ha comenzado entre", this.playerPokemon?.name, "y", this.npcPokemon?.name, "!");
-    },
+  console.log("¡La batalla ha comenzado!");
+
+  // Si el NPC aún no tiene Pokémon, selecciona uno aleatorio
+  if (!this.npcPokemon && this.pokemonsNPC.length > 0) {
+    const randomIndex = Math.floor(Math.random() * this.pokemonsNPC.length);
+    const selectedPokemon = this.pokemonsNPC[randomIndex];
+
+    // ✅ Clonamos el Pokémon asegurando que Vue detecte cambios
+    this.npcPokemon = {
+      id: selectedPokemon.id,
+      originalName: selectedPokemon.originalName,
+      name: selectedPokemon.originalName, // ✅ Actualiza el nombre
+      image: selectedPokemon.originalImage, // ✅ Revela la imagen real
+      availableTypes: [...selectedPokemon.availableTypes],
+      selectedType: "???",
+    };
+  }
+
+  // 🔹 Si el Pokémon tiene más de un tipo, selecciona uno aleatorio
+  if (this.npcPokemon.availableTypes.length > 1) {
+    const randomTypeIndex = Math.floor(Math.random() * this.npcPokemon.availableTypes.length);
+    this.npcPokemon.selectedType = this.npcPokemon.availableTypes[randomTypeIndex];
+    
+    // 🔹 Limita `availableTypes` al tipo seleccionado
+    this.npcPokemon.availableTypes = [this.npcPokemon.selectedType];
+  } else if (this.npcPokemon.availableTypes.length === 1) {
+    this.npcPokemon.selectedType = this.npcPokemon.availableTypes[0];
+  } else {
+    console.warn("⚠️ El Pokémon del NPC no tiene tipos disponibles.");
+  }
+
+  // 🔹 Reflejar cambios en la vista
+  this.$set(this.npcPokemon, "name", this.npcPokemon.originalName);
+  this.$set(this.npcPokemon, "image", this.npcPokemon.originalImage); 
+
+  console.log("NPC eligió el Pokémon:", this.npcPokemon.name);
+  console.log("Jugador:", this.playerPokemon);
+  console.log("NPC:", this.npcPokemon);
+},
+
     async confirmarTipo(pokemon, selectedType) {
       console.log(`Confirmando tipo: ${selectedType} para ${pokemon.name}`);
       
